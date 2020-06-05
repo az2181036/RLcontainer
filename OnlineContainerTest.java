@@ -50,8 +50,8 @@ public class OnlineContainerTest {
             HostSelectionPolicy hostSelectionPolicy = new HostSelectionPolicyFirstFit(); // Host selection being destination of migration
 
             // Host utilization threshold
-            double overUtilizationThreshold = 0.80;
-            double underUtilizationThreshold = 0.70;
+            double overUtilizationThreshold = 1;
+            double underUtilizationThreshold = 0;
 
             hostList = new ArrayList<ContainerHost>();
             hostList = createHostList(Constants.NUMBER_HOSTS);
