@@ -6,6 +6,12 @@ import org.cloudbus.cloudsim.power.models.PowerModelSpecPowerHpProLiantMl110G5Xe
 import org.cloudbus.cloudsim.power.models.PowerModelSpecPowerIbmX3550XeonX5670;
 
 public class Constants {
+    public static final int SEED = 500;
+    public static final int NUMBEREPOCH = 500;
+    public static final double GAMMA = 0.9;
+    public static final double EPSILON = 1;
+    public static final double EPSILONRATE = 0.5;
+    public static final double FINALEPSILON = 0.1;
 
     public static final boolean ENABLE_OUTPUT = true;
     public static final boolean OUTPUT_CSV = false;

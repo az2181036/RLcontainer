@@ -35,7 +35,7 @@ import java.util.List;
 public class OnlineContainerTest {
     private static List<DeadlineCloudlet> cloudletList;
     private static List<ContainerVm> vmList;
-    private static List<Container> containerList;
+    private static List<DeadlineContainer> containerList;
     private static List<ContainerHost> hostList;
 
     public static void main(String[] args) {
@@ -46,7 +46,6 @@ public class OnlineContainerTest {
             boolean trace_flag = false; //Deactivating the event tracing
             CloudSim.init(num_user, calendar, trace_flag); //1- Like CloudSim the first step is initializing the CloudSim Package before creating any entities.
 
-            ContainerAllocationPolicy containerAllocationPolicy = new PowerContainerAllocationPolicySimple(); //Container to VMs
             PowerContainerVmSelectionPolicy vmSelectionPolicy = new PowerContainerVmSelectionPolicyMaximumUsage(); //VM selection Policy for migration
             HostSelectionPolicy hostSelectionPolicy = new HostSelectionPolicyFirstFit(); // Host selection being destination of migration
 
@@ -70,8 +69,12 @@ public class OnlineContainerTest {
             int brokerId = broker.getId();
 
             cloudletList = createDeadlineCloudletList(brokerId, Constants.NUMBER_CLOUDLETS);
-            containerList = createContainerList(brokerId, Constants.NUMBER_CLOUDLETS);
+            containerList = createDeadlineContainerList(brokerId, Constants.NUMBER_CLOUDLETS);
             vmList = createVmList(brokerId, Constants.NUMBER_VMS);
+
+            PowerContainerAllocationPolicyRL containerAllocationPolicy = new PowerContainerAllocationPolicyRL(Constants.SEED,
+                    Constants.GAMMA, Constants.EPSILON, Constants.EPSILONRATE, Constants.FINALEPSILON,
+                    Constants.NUMBEREPOCH, containerList); //Container to VMs
 
             String logAddress = "~/Results";
 
@@ -92,6 +95,7 @@ public class OnlineContainerTest {
             }
 
             CloudSim.terminateSimulation(86400.00); //set terminate time
+
 
             CloudSim.startSimulation();
             CloudSim.stopSimulation();
@@ -246,7 +250,7 @@ public class OnlineContainerTest {
     public static ContainerDatacenter createDatacenter(String name, Class<? extends ContainerDatacenter> datacenterClass,
                                                        List<ContainerHost> hostList,
                                                        ContainerVmAllocationPolicy vmAllocationPolicy,
-                                                       ContainerAllocationPolicy containerAllocationPolicy,
+                                                       PowerContainerAllocationPolicyRL containerAllocationPolicy,
                                                        String experimentName, double schedulingInterval, String logAddress, double VMStartupDelay,
                                                        double ContainerStartupDelay) throws Exception {
         String arch = "x86";
@@ -274,13 +278,13 @@ public class OnlineContainerTest {
      * @param containersNumber
      * @return
      */
-    public static List<Container> createContainerList(int brokerId, int containersNumber) {
-        ArrayList<Container> containers = new ArrayList<Container>();
+    public static List<DeadlineContainer> createDeadlineContainerList(int brokerId, int containersNumber) {
+        ArrayList<DeadlineContainer> containers = new ArrayList<DeadlineContainer>();
 
         for (int i = 0; i < containersNumber; ++i) {
             int containerType = 0;
 
-            containers.add(new PowerContainer(i, brokerId, (double) Constants.CONTAINER_MIPS[containerType], Constants.
+            containers.add(new DeadlineContainer(i, brokerId, (double) Constants.CONTAINER_MIPS[containerType], Constants.
                     CONTAINER_PES[containerType], Constants.CONTAINER_RAM[containerType], Constants.CONTAINER_BW, 0L, "Xen",
                     new ContainerCloudletSchedulerDynamicWorkload(Constants.CONTAINER_MIPS[containerType], Constants.CONTAINER_PES[containerType]), Constants.SCHEDULING_INTERVAL));
         }

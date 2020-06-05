@@ -1,9 +1,10 @@
 package org.cloudbus.cloudsim.examples.RLcontainer;
 
 import org.cloudbus.cloudsim.container.core.Container;
+import org.cloudbus.cloudsim.container.core.PowerContainer;
 import org.cloudbus.cloudsim.container.schedulers.ContainerCloudletScheduler;
 
-public class DeadlineContainer extends Container {
+public class DeadlineContainer extends PowerContainer {
 
     private double cloudletDeadline = -1;
     private double finishTime = -1;
