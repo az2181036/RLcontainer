@@ -4,12 +4,12 @@ import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.container.core.Container;
 import org.cloudbus.cloudsim.container.core.ContainerVm;
 import org.cloudbus.cloudsim.container.lists.ContainerVmList;
-import org.cloudbus.cloudsim.container.resourceAllocators.ContainerAllocationPolicy;
+import org.cloudbus.cloudsim.container.resourceAllocators.PowerContainerAllocationPolicy;
 import org.cloudbus.cloudsim.core.CloudSim;
 
 import java.util.*;
 
-public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy {
+public class PowerContainerAllocationPolicyRL extends PowerContainerAllocationPolicy {
 
     private int numberEpoch;
     private double gamma;
@@ -21,8 +21,6 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
     private List<Double> simulationCPU;
     private HashMap<List<Integer>, double[]> Q;
     private List<DeadlineContainer> containerList;
-    private List<DeadlineContainerVm> containerVmList;
-    private final Map<String, DeadlineContainerVm> containerVmTable = new HashMap<>();
 
     public PowerContainerAllocationPolicyRL(
             int seed,
@@ -42,75 +40,66 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
 
         setQ(new HashMap<>());
         setSimulationCPU(new ArrayList<>());
-        setSimulationCPU(new ArrayList<>());
-        setContainerVmList(new ArrayList<>());
+        setSimulationRam(new ArrayList<>());
     }
 
-    public boolean allocateVmForContainer(DeadlineContainer container, List<DeadlineContainerVm> containerVmList) {
-        setContainerVmList(containerVmList);
-        return allocateVmForContainer(container, findVmForContainer(container));
-    }
-
-    public boolean allocateVmForContainer(DeadlineContainer container, DeadlineContainerVm containerVm) {
-        if (containerVm == null) {
-            Log.formatLine("%.2f: No suitable VM found for Container#" + container.getId() + "\n", CloudSim.clock());
-            return false;
-        }
-        if (containerVm.containerCreate(container)) { // if vm has been succesfully created in the host
-            getContainerVmTable().put(container.getUid(), containerVm);
-            container.setVm(containerVm);
-            Log.formatLine(
-                    "%.2f: Container #" + container.getId() + " has been allocated to the VM #" + containerVm.getId(),
-                    CloudSim.clock());
-            return true;
-        }
-        Log.formatLine(
-                "%.2f: Creation of Container #" + container.getId() + " on the Vm #" + containerVm.getId() + " failed\n",
-                CloudSim.clock());
-        return false;
-    }
-
-    public DeadlineContainerVm findVmForContainer(DeadlineContainer container) {
+    @Override
+    public ContainerVm findVmForContainer(Container container) {
         setSimulationRam();
         setSimulationCPU();
-        List <Integer> S = computeS(container);
+        List <Integer> S = computeS((DeadlineContainer) container);
 
         if(getQ().containsKey(S)){
             double[] q = getQ().get(S);
             return ContainerVmList.getById(getContainerVmList(),getMaxIdx(q));
         }
-        return ContainerVmList.getById(getContainerVmList(), getRandom().nextInt(getContainerVmList().size()));
+        return findVmForContainerKeyHasNoS(container);
     }
 
+    public ContainerVm findVmForContainerKeyHasNoS(Container container){
+        Log.printLine("Q Table doesn't have the S, round searching a Vm.");
+        for (ContainerVm containerVm : getContainerVmList()) {
+//                Log.printConcatLine("Trying vm #",containerVm.getId(),"For container #", container.getId());
+            if (containerVm.isSuitableForContainer(container)) {
+                return containerVm;
+            }
+        }
+        return null;
+    }
+
+    //
     public void deallocateVmForContainer(DeadlineContainer container) {
-        DeadlineContainerVm containerVm = getContainerVmTable().remove(container.getUid());
+        ContainerVm containerVm = getContainerTable().remove(container.getUid());
         if (containerVm != null) {
             containerVm.containerDestroy(container);
         }
     }
 
-    public DeadlineContainerVm getContainerVm(DeadlineContainer container) {
-        return getContainerVmTable().get(container.getUid());
+    public ContainerVm getContainerVm(DeadlineContainer container) {
+        return getContainerTable().get(container.getUid());
     }
 
-    public DeadlineContainerVm getContainerVm(int containerId, int userId) {
-        return getContainerVmTable().get(DeadlineContainer.getUid(userId, containerId));
+    public ContainerVm getContainerVm(int containerId, int userId) {
+        return getContainerTable().get(DeadlineContainer.getUid(userId, containerId));
     }
 
-    public void RLTrain(){
-        setSimulationRam();
-        setSimulationCPU();
+    public void RLTrain(List<ContainerVm> vmList){
+        setContainerVmList(vmList);
+        double delta = (getEpsilon() - getFinalEpsilon()) / (getNumberEpoch() * getEpsilonRate());
         for(int epoch=0;epoch<getNumberEpoch();epoch++){
+            setSimulationRam();
+            setSimulationCPU();
             List <Integer> S = computeS(getContainerList().get(0));
             for(int i=0;i<getContainerList().size();i++){
                 DeadlineContainer container = getContainerList().get(i);
 
                 int action;
-                double[] q = new double[getContainerVmList().size()];
+                double[] q = new double[vmList.size()];
                 if(getQ().containsKey(S)) q = getQ().get(S);
 
-                if (getRandom().nextDouble() < getEpsilon())
-                    action = getRandom().nextInt(getContainerVmList().size());
+                if (getRandom().nextDouble() < getEpsilon()) {
+                    action = getRandom().nextInt(vmList.size());
+                }
                 else action = getMaxIdx(q);
 
                 double reward = computeReward(action, S);
@@ -118,7 +107,7 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
                 updateSimulationRam(action, container);
 
                 List <Integer> _S;
-                double[] _q = new double[getContainerVmList().size()];
+                double[] _q = new double[vmList.size()];
                 if(i < getContainerList().size()-1){
                     _S = computeS(getContainerList().get(i+1));
                     if(getQ().containsKey(_S)) _q = getQ().get(_S);
@@ -127,6 +116,7 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
                 computeQ(q, action, reward, _q);
                 putQ(S, q);
             }
+            if(getEpsilon()>getFinalEpsilon()) setEpsilon(getEpsilon() - delta);
         }
     }
 
@@ -152,9 +142,9 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
 
     public int computeSValue(int i, DeadlineContainer container){
         int multiplicator = 0;
-        DeadlineContainerVm containerVm = getContainerVmList().get(i);
+        ContainerVm containerVm = getContainerVmList().get(i);
         if (containerVm.isSuitableForContainer(container))
-            if (containerVm.updateContainersProcessing(CloudSim.clock())+container.getFinishTime()<=container.getDeadline())
+            if (containerVm.updateContainersProcessing(CloudSim.clock())+ container.getFinishTime() <= container.getDeadline())
                 multiplicator = 1;
         double tmp = Math.max(Math.floor(getSimulationCPU().get(i)/container.getCurrentRequestedTotalMips()),
                 Math.floor(getSimulationRam().get(i)/ container.getRam()));
@@ -163,7 +153,8 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
 
     public List<Integer> computeS(DeadlineContainer container){
         ArrayList<Integer> S = new ArrayList<>();
-        for (int i=0;i<getContainerVmList().size();i++) S.add(computeSValue(i, container));
+        for (int i=0;i<getContainerVmList().size();i++)
+            S.add(computeSValue(i, container));
         return S;
     }
 
@@ -172,8 +163,8 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
     }
 
     public void setSimulationCPU(){
-        this.simulationCPU.clear();
-        for (DeadlineContainerVm containerVm : getContainerVmList()) {
+        getSimulationCPU().clear();
+        for (ContainerVm containerVm : getContainerVmList()) {
             this.simulationCPU.add(containerVm.getMaxAvailableMips());
         }
     }
@@ -191,8 +182,8 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
     }
 
     public void setSimulationRam(){
-        this.simulationRam.clear();
-        for (DeadlineContainerVm containerVm : getContainerVmList()) {
+        getSimulationRam().clear();
+        for (ContainerVm containerVm : getContainerVmList()) {
             this.simulationRam.add((double)(containerVm.getRam() - containerVm.getCurrentAllocatedRam()));
         }
     }
@@ -227,10 +218,6 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
 
     public void setEpsilon(double epsilon) {
         this.epsilon = epsilon;
-    }
-
-    public Map<String, DeadlineContainerVm> getContainerVmTable() {
-        return containerVmTable;
     }
 
     public double getGamma(){
@@ -279,24 +266,5 @@ public class PowerContainerAllocationPolicyRL extends ContainerAllocationPolicy 
         this.random = random;
     }
 
-    public List<DeadlineContainerVm> getContainerVmList(){
-        return containerVmList;
-    }
-
-    public boolean allocateVmForContainer(Container container, List<ContainerVm> containerVmList){
-        return false;
-    }
-
-    public boolean allocateVmForContainer(Container container, ContainerVm vm){
-        return false;
-    }
-
-    public List<Map<String, Object>> optimizeAllocation(List<? extends Container> containerList){
-        return null;
-    }
-
-    public void deallocateVmForContainer(Container container){}
-
-    public ContainerVm getContainerVm(Container container){ return null; }
-
+    public List<Map<String, Object>> optimizeAllocation(List<? extends Container> containerList) { return null; }
 }

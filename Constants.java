@@ -15,7 +15,7 @@ public class Constants {
 
     public static final boolean ENABLE_OUTPUT = true;
     public static final boolean OUTPUT_CSV = false;
-    public static final double SCHEDULING_INTERVAL = 300.0D;
+    public static final double SCHEDULING_INTERVAL = 5000.0D;
     public static final double SIMULATION_LIMIT = 87400.0D;
     public static final double CONTAINER_STARTTUP_DELAY = 0.4;//the amount is in seconds
     public static final double VM_STARTTUP_DELAY = 100;//the amoun is in seconds
@@ -41,9 +41,9 @@ public class Constants {
     public static final int CONTAINER_TYPES = 3;
     public static final int[] CONTAINER_MIPS = new int[]{100};
     public static final int[] CONTAINER_PES = new int[]{1};
-    public static final int[] CONTAINER_RAM = new int[]{50};
+    public static final int[] CONTAINER_RAM = new int[]{25};
     public static final int CONTAINER_BW = 0;
 
-    public static final long CLOUDLET_LENGTH = 8550000;
+    public static final long CLOUDLET_LENGTH = 8050000;
     public static final int CLOUDLET_PES = 1;
 }

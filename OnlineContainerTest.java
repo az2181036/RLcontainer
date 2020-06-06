@@ -12,10 +12,9 @@ import org.cloudbus.cloudsim.container.containerVmProvisioners.ContainerVmRamPro
 import org.cloudbus.cloudsim.container.core.*;
 import org.cloudbus.cloudsim.container.hostSelectionPolicies.HostSelectionPolicy;
 import org.cloudbus.cloudsim.container.hostSelectionPolicies.HostSelectionPolicyFirstFit;
+import org.cloudbus.cloudsim.container.lists.ContainerList;
 import org.cloudbus.cloudsim.container.resourceAllocatorMigrationEnabled.PowerContainerVmAllocationPolicyMigrationAbstractHostSelection;
-import org.cloudbus.cloudsim.container.resourceAllocators.ContainerAllocationPolicy;
 import org.cloudbus.cloudsim.container.resourceAllocators.ContainerVmAllocationPolicy;
-import org.cloudbus.cloudsim.container.resourceAllocators.PowerContainerAllocationPolicySimple;
 import org.cloudbus.cloudsim.container.schedulers.ContainerCloudletSchedulerDynamicWorkload;
 import org.cloudbus.cloudsim.container.schedulers.ContainerSchedulerTimeSharedOverSubscription;
 import org.cloudbus.cloudsim.container.schedulers.ContainerVmSchedulerTimeSharedOverSubscription;
@@ -53,10 +52,10 @@ public class OnlineContainerTest {
             double overUtilizationThreshold = 1;
             double underUtilizationThreshold = 0;
 
-            hostList = new ArrayList<ContainerHost>();
+            hostList = new ArrayList<>();
             hostList = createHostList(Constants.NUMBER_HOSTS);
-            cloudletList = new ArrayList<DeadlineCloudlet>();
-            vmList = new ArrayList<ContainerVm>();
+            cloudletList = new ArrayList<>();
+            vmList = new ArrayList<>();
 
             // VMs to Host
             ContainerVmAllocationPolicy vmAllocationPolicy = new
@@ -92,11 +91,12 @@ public class OnlineContainerTest {
             for (DeadlineCloudlet cloudlet:cloudletList){
                 int id = cloudlet.getCloudletId();
                 broker.bindCloudletToContainer(id, id);
+                containerList.get(id).setFinishTime(cloudlet.getCloudletLength());
             }
 
             CloudSim.terminateSimulation(86400.00); //set terminate time
 
-
+            containerAllocationPolicy.RLTrain(vmList);
             CloudSim.startSimulation();
             CloudSim.stopSimulation();
 
@@ -286,7 +286,7 @@ public class OnlineContainerTest {
 
             containers.add(new DeadlineContainer(i, brokerId, (double) Constants.CONTAINER_MIPS[containerType], Constants.
                     CONTAINER_PES[containerType], Constants.CONTAINER_RAM[containerType], Constants.CONTAINER_BW, 0L, "Xen",
-                    new ContainerCloudletSchedulerDynamicWorkload(Constants.CONTAINER_MIPS[containerType], Constants.CONTAINER_PES[containerType]), Constants.SCHEDULING_INTERVAL));
+                    new ContainerCloudletSchedulerDynamicWorkload(Constants.CONTAINER_MIPS[containerType], Constants.CONTAINER_PES[containerType]), Constants.SCHEDULING_INTERVAL, 10000));
         }
 
         return containers;
