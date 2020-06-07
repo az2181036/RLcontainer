@@ -24,26 +24,27 @@ public class Constants {
     public static final int NUMBER_VMS = 20;
     public static final int NUMBER_CLOUDLETS = 50;
 
-    public static final int HOST_TYPES = 1;
-    public static final int[] HOST_MIPS = new int[]{2500};
-    public static final int[] HOST_PES = new int[]{96};
-    public static final int[] HOST_RAM = new int[]{100};
+    public static final int HOST_TYPES = 3;
+    public static final int[] HOST_MIPS = new int[]{37274, 37274, 37274};
+    public static final int[] HOST_PES = new int[]{4, 8, 16};
+    public static final int[] HOST_RAM = new int[]{2500, 5000, 10000};
     public static final int HOST_BW = 0;
-    public static final PowerModel[] HOST_POWER = new PowerModel[]{new PowerModelSpecPowerHpProLiantMl110G4Xeon3040()};
+    public static final PowerModel[] HOST_POWER = new PowerModel[]{new PowerModelSpecPowerHpProLiantMl110G4Xeon3040(),
+            new PowerModelSpecPowerHpProLiantMl110G5Xeon3075(), new PowerModelSpecPowerIbmX3550XeonX5670()};
 
-    public static final int VM_TYPES = 1;
-    public static final double[] VM_MIPS = new double[]{2500};
-    public static final int[] VM_PES = new int[]{96};
-    public static final float[] VM_RAM = new float[] {100};//**MB*
+    public static final int VM_TYPES = 3;
+    public static final double[] VM_MIPS = new double[]{37274, 37274, 37274};
+    public static final int[] VM_PES = new int[]{4, 8, 16};
+    public static final float[] VM_RAM = new float[] {2500, 5000, 10000};//**MB*
     public static final int VM_BW = 0;
     public static final int VM_SIZE = 2500;
 
-    public static final int CONTAINER_TYPES = 3;
-    public static final int[] CONTAINER_MIPS = new int[]{100};
+    public static final int CONTAINER_TYPES = 1;
+    public static final int[] CONTAINER_MIPS = new int[]{500};
     public static final int[] CONTAINER_PES = new int[]{1};
     public static final int[] CONTAINER_RAM = new int[]{25};
     public static final int CONTAINER_BW = 0;
 
-    public static final long CLOUDLET_LENGTH = 8050000;
+    public static final long CLOUDLET_LENGTH = 8000000 * 5;
     public static final int CLOUDLET_PES = 1;
 }

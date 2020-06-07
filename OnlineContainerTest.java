@@ -1,6 +1,9 @@
 package org.cloudbus.cloudsim.examples.RLcontainer;
 
 import org.cloudbus.cloudsim.*;
+import org.cloudbus.cloudsim.container.containerPlacementPolicies.ContainerPlacementPolicyFirstFit;
+import org.cloudbus.cloudsim.container.containerPlacementPolicies.ContainerPlacementPolicyLeastFull;
+import org.cloudbus.cloudsim.container.containerPlacementPolicies.ContainerPlacementPolicyMostFull;
 import org.cloudbus.cloudsim.container.containerProvisioners.ContainerBwProvisionerSimple;
 import org.cloudbus.cloudsim.container.containerProvisioners.ContainerPe;
 import org.cloudbus.cloudsim.container.containerProvisioners.ContainerRamProvisionerSimple;
@@ -12,23 +15,19 @@ import org.cloudbus.cloudsim.container.containerVmProvisioners.ContainerVmRamPro
 import org.cloudbus.cloudsim.container.core.*;
 import org.cloudbus.cloudsim.container.hostSelectionPolicies.HostSelectionPolicy;
 import org.cloudbus.cloudsim.container.hostSelectionPolicies.HostSelectionPolicyFirstFit;
-import org.cloudbus.cloudsim.container.lists.ContainerList;
 import org.cloudbus.cloudsim.container.resourceAllocatorMigrationEnabled.PowerContainerVmAllocationPolicyMigrationAbstractHostSelection;
+import org.cloudbus.cloudsim.container.resourceAllocators.ContainerAllocationPolicy;
+import org.cloudbus.cloudsim.container.resourceAllocators.ContainerAllocationPolicyRS;
 import org.cloudbus.cloudsim.container.resourceAllocators.ContainerVmAllocationPolicy;
-import org.cloudbus.cloudsim.container.schedulers.ContainerCloudletSchedulerDynamicWorkload;
-import org.cloudbus.cloudsim.container.schedulers.ContainerSchedulerTimeSharedOverSubscription;
-import org.cloudbus.cloudsim.container.schedulers.ContainerVmSchedulerTimeSharedOverSubscription;
+import org.cloudbus.cloudsim.container.schedulers.*;
 import org.cloudbus.cloudsim.container.utils.IDs;
 import org.cloudbus.cloudsim.container.vmSelectionPolicies.PowerContainerVmSelectionPolicy;
 import org.cloudbus.cloudsim.container.vmSelectionPolicies.PowerContainerVmSelectionPolicyMaximumUsage;
 import org.cloudbus.cloudsim.core.CloudSim;
 
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 
 public class OnlineContainerTest {
@@ -36,6 +35,8 @@ public class OnlineContainerTest {
     private static List<ContainerVm> vmList;
     private static List<DeadlineContainer> containerList;
     private static List<ContainerHost> hostList;
+    private static final List<List<String>> onlineInfo = readCSV("A:/c_meta.csv", true);
+    private static final List<List<String>> batchTaskInfo = readCSV("A:/task.csv", true);
 
     public static void main(String[] args) {
         Log.printLine("Starting Online Container Test...");
@@ -62,19 +63,21 @@ public class OnlineContainerTest {
                     PowerContainerVmAllocationPolicyMigrationAbstractHostSelection(hostList, vmSelectionPolicy,
                     hostSelectionPolicy, overUtilizationThreshold, underUtilizationThreshold);
 
-            // The overbooking factor for allocating containers to VMs. This factor is used by the broker for the allocation process.
+            // The overbooking factor for allocating containers to. This factor is used by the broker for the allocation process.
             int overBookingFactor = 80;
             ContainerDatacenterBroker broker = createBroker(overBookingFactor);
             int brokerId = broker.getId();
 
-            cloudletList = createDeadlineCloudletList(brokerId, Constants.NUMBER_CLOUDLETS);
-            containerList = createDeadlineContainerList(brokerId, Constants.NUMBER_CLOUDLETS);
+            List<DeadlineCloudlet> cloudletList2 =  createDeadlineCloudletList(brokerId, Constants.NUMBER_CLOUDLETS);
+            cloudletList = createDeadlineCloudletList(brokerId, Constants.NUMBER_CLOUDLETS*2);
+            containerList = createDeadlineContainerList(brokerId, Constants.NUMBER_CLOUDLETS*2);
             vmList = createVmList(brokerId, Constants.NUMBER_VMS);
 
             PowerContainerAllocationPolicyRL containerAllocationPolicy = new PowerContainerAllocationPolicyRL(Constants.SEED,
                     Constants.GAMMA, Constants.EPSILON, Constants.EPSILONRATE, Constants.FINALEPSILON,
                     Constants.NUMBEREPOCH, containerList); //Container to VMs
 
+//             ContainerAllocationPolicyRS containerAllocationPolicy = new ContainerAllocationPolicyRS(new ContainerPlacementPolicyLeastFull());
             String logAddress = "~/Results";
 
             @SuppressWarnings("unused")
@@ -91,11 +94,11 @@ public class OnlineContainerTest {
             for (DeadlineCloudlet cloudlet:cloudletList){
                 int id = cloudlet.getCloudletId();
                 broker.bindCloudletToContainer(id, id);
-                containerList.get(id).setFinishTime(cloudlet.getCloudletLength());
+                containerList.get(id).setEstimateTimeToFinish(cloudlet.getCloudletLength());
             }
 
             CloudSim.terminateSimulation(86400.00); //set terminate time
-
+            printCloudletListInformation(cloudletList, containerList);
             containerAllocationPolicy.RLTrain(vmList);
             CloudSim.startSimulation();
             CloudSim.stopSimulation();
@@ -145,11 +148,33 @@ public class OnlineContainerTest {
         return broker;
     }
 
-    /**
-     * Prints the Cloudlet objects.
-     *
-     * @param list list of Cloudlets
-     */
+    private static void printCloudletListInformation(List<DeadlineCloudlet> cloudletList, List<DeadlineContainer> containerList) {
+        int size = cloudletList.size();
+        DeadlineCloudlet cloudlet;
+        Container container;
+
+        String indent = "    ";
+        Log.printLine();
+        Log.printLine("========== INTPUT ==========");
+        Log.printLine("Cloudlet ID"+ indent + "Container ID" + indent + "Cloudlet Length" + indent
+                 + "Request PEs" +indent + "Container Mips" +indent + "Request RAM" + indent + indent + "Deadline");
+
+        double count = 0;
+        for (int i = 0; i < size; i++) {
+            cloudlet = cloudletList.get(i);
+            container = containerList.get(i);
+            count += container.getRam();
+            Log.printLine(indent + cloudlet.getCloudletId() + indent + indent +
+                    indent + container.getId() + indent + indent + indent +
+                    indent + cloudlet.getCloudletLength() + indent + indent +
+                    indent + container.getNumberOfPes() + indent + indent + indent +
+                    indent + container.getMips() + indent + indent +
+                    indent + container.getRam() + indent + indent +
+                    indent + cloudlet.getDeadline() + indent + indent);
+        }
+        Log.printLine(count);
+    }
+
     private static void printCloudletList(List<DeadlineCloudlet> list) {
         int size = list.size();
         Cloudlet cloudlet;
@@ -199,7 +224,7 @@ public class OnlineContainerTest {
             containerVms.add(new PowerContainerVm(IDs.pollId(ContainerVm.class), brokerId,
                     (double) Constants.VM_MIPS[vmType], (float) Constants.VM_RAM[vmType],
                     Constants.VM_BW, Constants.VM_SIZE, "Xen",
-                    new ContainerSchedulerTimeSharedOverSubscription(peList),
+                    new ContainerSchedulerTimeShared(peList),
                     new ContainerRamProvisionerSimple(Constants.VM_RAM[vmType]),
                     new ContainerBwProvisionerSimple(Constants.VM_BW),
                     peList, Constants.SCHEDULING_INTERVAL));
@@ -250,7 +275,7 @@ public class OnlineContainerTest {
     public static ContainerDatacenter createDatacenter(String name, Class<? extends ContainerDatacenter> datacenterClass,
                                                        List<ContainerHost> hostList,
                                                        ContainerVmAllocationPolicy vmAllocationPolicy,
-                                                       PowerContainerAllocationPolicyRL containerAllocationPolicy,
+                                                       ContainerAllocationPolicy containerAllocationPolicy,
                                                        String experimentName, double schedulingInterval, String logAddress, double VMStartupDelay,
                                                        double ContainerStartupDelay) throws Exception {
         String arch = "x86";
@@ -279,16 +304,15 @@ public class OnlineContainerTest {
      * @return
      */
     public static List<DeadlineContainer> createDeadlineContainerList(int brokerId, int containersNumber) {
-        ArrayList<DeadlineContainer> containers = new ArrayList<DeadlineContainer>();
+        ArrayList<DeadlineContainer> containers = new ArrayList<>();
 
         for (int i = 0; i < containersNumber; ++i) {
             int containerType = 0;
 
-            containers.add(new DeadlineContainer(i, brokerId, (double) Constants.CONTAINER_MIPS[containerType], Constants.
-                    CONTAINER_PES[containerType], Constants.CONTAINER_RAM[containerType], Constants.CONTAINER_BW, 0L, "Xen",
-                    new ContainerCloudletSchedulerDynamicWorkload(Constants.CONTAINER_MIPS[containerType], Constants.CONTAINER_PES[containerType]), Constants.SCHEDULING_INTERVAL, 10000));
+            containers.add(new DeadlineContainer(i, brokerId, (double) Constants.CONTAINER_MIPS[containerType], (int)Math.ceil(Integer.parseInt(onlineInfo.get(i).get(1)) / 100),
+                    (int)Math.ceil(Double.parseDouble(onlineInfo.get(i).get(3))*100), Constants.CONTAINER_BW, 0L, "Xen",
+                    new ContainerCloudletSchedulerTimeShared(), Constants.SCHEDULING_INTERVAL, -1));
         }
-
         return containers;
     }
 
@@ -300,20 +324,41 @@ public class OnlineContainerTest {
      * @return
      * @throws FileNotFoundException
      */
-    public static List<DeadlineCloudlet> createDeadlineCloudletList(int brokerId, int numberOfCloudlets)
-            throws FileNotFoundException {
+    public static List<DeadlineCloudlet> createDeadlineCloudletList(int brokerId, int numberOfCloudlets) {
         long filesize = 0;
         long outsize = 0;
         UtilizationModel utilizationModelFull = new UtilizationModelFull();
         UtilizationModel utilizationModelNull = new UtilizationModelNull();
-        ArrayList<DeadlineCloudlet> cloudletList = new ArrayList<DeadlineCloudlet>();
+        ArrayList<DeadlineCloudlet> cloudletList = new ArrayList<>();
         for (int i=0; i<numberOfCloudlets; i++){
-            DeadlineCloudlet cloudlet = new DeadlineCloudlet(i, Constants.CLOUDLET_LENGTH, Constants.CLOUDLET_PES, filesize, outsize,
+            DeadlineCloudlet cloudlet = new DeadlineCloudlet(i, Constants.CLOUDLET_LENGTH, (int)Math.ceil(Integer.parseInt(onlineInfo.get(i).get(1)) / 100), filesize, outsize,
                     utilizationModelFull, utilizationModelFull, utilizationModelNull);
             cloudlet.setUserId(brokerId);
             cloudletList.add(cloudlet);
         }
         return cloudletList;
+    }
+
+    public static List<List<String>> readCSV(String filePath, boolean hasTitle){
+        List<List<String>> data=new ArrayList<>();
+        String line;
+        try {
+            //BufferedReader bufferedReader=new BufferedReader(new FileReader(filePath));
+            BufferedReader bufferedReader=new BufferedReader(new InputStreamReader(new FileInputStream(filePath),"utf-8"));
+            if (hasTitle){
+                bufferedReader.readLine();
+            }
+
+            while((line=bufferedReader.readLine())!=null){
+                String[] items=line.split(",");
+                data.add(Arrays.asList(items));
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return data;
     }
 
 }

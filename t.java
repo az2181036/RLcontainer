@@ -1,42 +1,36 @@
 package org.cloudbus.cloudsim.examples.RLcontainer;
 
+import java.io.*;
 import java.util.*;
 
 public class t {
     public static void main(String[] args) {
-          List<Integer> a = new ArrayList<>();
-          a.add(1);
-          a.add(2);
-          List<Integer> b=new ArrayList<>();
-          Collections.copy(a,b);
+        List<List<String>> data = readCSV("A:/c_meta.csv", false);
+    }
 
-          List<Integer> srcList = new ArrayList<Integer>();
-          srcList.add(1);
-          srcList.add(2);
-          List<Integer> destList1= new ArrayList<Integer>(srcList);
+    public static List<List<String>> readCSV(String filePath, boolean hasTitle){
+        List<List<String>> data=new ArrayList<>();
+        String line=null;
+        try {
+            //BufferedReader bufferedReader=new BufferedReader(new FileReader(filePath));
+            BufferedReader bufferedReader=new BufferedReader(new InputStreamReader(new FileInputStream(filePath),"utf-8"));
+            if (hasTitle){
+                line = bufferedReader.readLine();
+                String[] items=line.split(",");
+                data.add(Arrays.asList(items));
+            }
 
-          List<Integer> destList2= Arrays.asList(new Integer[srcList .size()]);
-          Collections.copy(destList2, srcList);
-
-          List<Integer> destList3= new ArrayList<Integer>();
-          destList3.addAll(srcList);
-
-          List<Integer> destList4= new ArrayList<Integer>();
-          for (int i = 0; i < srcList.size(); i++) {
-              destList4.add(srcList.get(i));
-          }
-          //测试：
-          System.out.println("源list"+srcList);//输出[1, 2]
-          System.out.println("1copyList："+destList1);//输出[1, 2]
-          System.out.println("2copyList："+destList2);//输出[1, 2]
-            System.out.println("3copyList："+destList3);//输出[1, 2]
-            System.out.println("4copyList："+destList4);//输出[1, 2]
-            System.out.println("---删除源数据第一个元素");
-            srcList.set(0, 2);
-            System.out.println("---删除源数据第一个元素之后");
-            System.out.println("源list"+srcList);//输出[2]
-            System.out.println("1copyList："+destList1);//输出[1, 2]
-            System.out.println("2copyList："+destList2);//输出[1, 2]
-            System.out.println("3copyList："+destList3);//输出[1, 2]
+            int i=0;
+            while((line=bufferedReader.readLine())!=null){
+                String[] items=line.split(",");
+                data.add(Arrays.asList(items));
+                i++;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return data;
     }
 }

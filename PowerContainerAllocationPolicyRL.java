@@ -51,7 +51,7 @@ public class PowerContainerAllocationPolicyRL extends PowerContainerAllocationPo
 
         if(getQ().containsKey(S)){
             double[] q = getQ().get(S);
-            return ContainerVmList.getById(getContainerVmList(),getMaxIdx(q));
+            return ContainerVmList.getById(getContainerVmList(),getMaxIdx(q)+1);
         }
         return findVmForContainerKeyHasNoS(container);
     }
@@ -126,10 +126,10 @@ public class PowerContainerAllocationPolicyRL extends PowerContainerAllocationPo
         int idx=0;
         for(int i =0;i<arr.length-1;i++){
             if(arr[idx]>arr[i+1]){
-                idx=i+1;
+                idx = i;
             }
         }
-        return idx;
+        return idx + 1;
     }
 
     public double computeReward(int action, List <Integer> S){
@@ -144,7 +144,8 @@ public class PowerContainerAllocationPolicyRL extends PowerContainerAllocationPo
         int multiplicator = 0;
         ContainerVm containerVm = getContainerVmList().get(i);
         if (containerVm.isSuitableForContainer(container))
-            if (containerVm.updateContainersProcessing(CloudSim.clock())+ container.getFinishTime() <= container.getDeadline())
+            if (container.getDeadline() < 0 ||
+                    containerVm.updateContainersProcessing(CloudSim.clock())+ container.getEstimateTimeToFinish() <= container.getDeadline())
                 multiplicator = 1;
         double tmp = Math.max(Math.floor(getSimulationCPU().get(i)/container.getCurrentRequestedTotalMips()),
                 Math.floor(getSimulationRam().get(i)/ container.getRam()));
